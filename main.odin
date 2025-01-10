@@ -2,8 +2,15 @@ package main
 
 import "core:math"
 import "core:fmt"
+import "core:slice"
 
 import rl "vendor:raylib"
+
+Holding :: enum {
+	None,
+	Start,
+	Goal,
+}
 
 main :: proc() {
 	rl.InitWindow(1920, 1080, "hexagons are the bestagons")
@@ -18,6 +25,8 @@ main :: proc() {
 
 	start := [2]int{-10, -10}
 	goal := [2]int{10, 10}
+
+	user_holding: Holding
 
 	for !rl.WindowShouldClose() {
 		camera := rl.Camera2D {
@@ -39,13 +48,47 @@ main :: proc() {
 			f32(rl.GetScreenHeight()) / camera.zoom,
 		}
 
+		if user_holding == .None && rl.IsMouseButtonPressed(.LEFT) {
+			switch mouse_grid_coord {
+			case start:
+				user_holding = .Start
+			case goal:
+				user_holding = .Goal
+			case:
+				if !slice.contains(obstacles[:], mouse_grid_coord) {
+					append(&obstacles, mouse_grid_coord)
+				}
+			}
+		} else if user_holding == .None && rl.IsMouseButtonDown(.LEFT) {
+			if !slice.contains(obstacles[:], mouse_grid_coord) {
+				append(&obstacles, mouse_grid_coord)
+			}
+		} else if user_holding == .None && rl.IsMouseButtonDown(.RIGHT) {
+			idx, found := slice.linear_search(obstacles[:], mouse_grid_coord)
+			if found {
+				unordered_remove(&obstacles, idx)
+			}
+		} else if user_holding == .Start {
+			start = mouse_grid_coord
+		} else if user_holding == .Goal {
+			goal = mouse_grid_coord
+		}
+
+		if user_holding != .None && rl.IsMouseButtonReleased(.LEFT) {
+			user_holding = .None
+		}
+
+		grid.obstacles = obstacles[:]
+
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.RAYWHITE)
 		rl.BeginMode2D(camera)
 		hg_tile_rect(grid, grid_rect)
 		hg_draw_hex(grid, start, rl.BLUE)
 		hg_draw_hex(grid, goal, rl.RED)
-		hg_draw_hex(grid, mouse_grid_coord, {255, 255, 0, 100})
+		if user_holding == .None {
+			hg_draw_hex(grid, mouse_grid_coord, {255, 255, 0, 100})
+		}
 		rl.DrawText(mouse_coord_string, i32(math.round(world_mouse.x + 5)), i32(math.round(world_mouse.y + 5)), 24, rl.BLACK)
 
 		rl.EndMode2D()
