@@ -1,6 +1,7 @@
 package main
 
 import "core:math"
+import "core:slice"
 
 import rl "vendor:raylib"
 
@@ -9,6 +10,7 @@ Hex_Grid :: struct {
 	origin: [2]f32,
 	hex_width: f32,
 	hex_height: f32,
+	obstacles: [][2]int,
 }
 
 hex_grid_projection :: proc(origin: [2]f32, hex_width, angle: f32) -> Hex_Grid {
@@ -18,6 +20,7 @@ hex_grid_projection :: proc(origin: [2]f32, hex_width, angle: f32) -> Hex_Grid {
 		origin,
 		hex_width,
 		hex_height,
+		nil,
 	}
 }
 
@@ -34,13 +37,16 @@ hg_world_to_coord :: proc(grid: Hex_Grid, point: [2]f32) -> [2]int {
 	}
 }
 
-hg_tile_rect :: proc(grid: Hex_Grid, rect: rl.Rectangle, color: rl.Color) {
+hg_tile_rect :: proc(grid: Hex_Grid, rect: rl.Rectangle) {
 	tl_coord := hg_world_to_coord(grid, {rect.x, rect.y})
 	br_coord := hg_world_to_coord(grid, {rect.x + rect.width, rect.y + rect.height})
 
 	for col in tl_coord.x..=br_coord.x {
 		for row in tl_coord.y..=br_coord.y {
-			hg_draw_hex_lines(grid, {col, row}, color)
+			if slice.contains(grid.obstacles, [2]int{col, row}) {
+				hg_draw_hex(grid, {col, row}, rl.DARKGRAY)
+			}
+			hg_draw_hex_lines(grid, {col, row}, rl.BLACK)
 		}
 	}
 }
@@ -113,6 +119,6 @@ draw_hex_lines :: proc(center: [2]f32, width, height: f32, color: rl.Color) {
 		j := (i + 1) % len(vertex_offsets)
 		v1 := center + vertex_offsets[i]
 		v2 := center + vertex_offsets[j]
-		rl.DrawLineV(v1, v2, color)
+		rl.DrawLineEx(v1, v2, 1, color)
 	}
 }
