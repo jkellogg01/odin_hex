@@ -1,0 +1,23 @@
+{
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+	"build_systems":
+	[
+		{
+			"name": "Odin - Build & Run",
+			"cmd": ["odin", "run", "."],
+			"working_dir": "$project_path",
+			"file_regex": "^(.+)\\((\\d+):(\\d+)\\) (.+)$",
+		},
+		{
+			"name": "Odin - Strict Build & Run",
+			"cmd": ["odin", "run", ".", "-vet"],
+			"working_dir": "$project_path",
+			"file_regex": "^(.+)\\((\\d+):(\\d+)\\) (.+)$",
+		}
+	]
+}
