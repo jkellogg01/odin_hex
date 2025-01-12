@@ -81,6 +81,8 @@ main :: proc() {
 			user_holding = .None
 		}
 
+		path, path_found := find_path(start, goal, grid.obstacles[:])
+
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.RAYWHITE)
 		rl.BeginMode2D(camera)
@@ -89,6 +91,11 @@ main :: proc() {
 		hg_draw_hex(grid, goal, rl.RED)
 		if user_holding == .None {
 			hg_draw_hex(grid, mouse_grid_coord, {255, 255, 0, 100})
+		}
+		if path_found {
+			for path_space in path {
+				hg_draw_hex(grid, path_space, {255, 0, 255, 100})
+			}
 		}
 		hg_tile_grid_over_rect(grid, grid_rect)
 		// rl.DrawText(mouse_coord_string, i32(math.round(world_mouse.x + 5)), i32(math.round(world_mouse.y + 5)), 24, rl.BLACK)
