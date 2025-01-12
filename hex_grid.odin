@@ -1,79 +1,130 @@
 package main
 
+import "core:fmt"
 import "core:math"
+import "core:math/linalg"
 import "core:slice"
 
 import rl "vendor:raylib"
 
-// no need to support point-topped hexes bc i don't want to use them
-Hex_Grid :: struct {
-	origin: [2]f32,
-	hex_width: f32,
-	hex_height: f32,
-	obstacles: [][2]int,
+axial_directions :: [6][2]int{
+	{1, -1},
+	{0, -1},
+	{-1, 0},
+	{-1, 1},
+	{0, 1},
+	{1, 0},
 }
 
-hex_grid_projection :: proc(origin: [2]f32, hex_width, angle: f32) -> Hex_Grid {
+Hex_Grid :: struct {
+	hex_width: f32,
+	hex_height: f32,
+	obstacles: [dynamic][2]int,
+}
+
+hex_grid_projection :: proc(radius, angle: f32) -> Hex_Grid {
+	hex_width := 2 * radius
 	angle_rad := math.to_radians(angle)
-	hex_height := (math.sqrt_f32(3)/2) * hex_width * math.cos(angle_rad)
+	hex_height := math.sqrt_f32(3) * radius * math.cos(angle_rad)
 	return {
-		origin,
 		hex_width,
 		hex_height,
 		nil,
 	}
 }
 
-hg_world_to_coord :: proc(grid: Hex_Grid, point: [2]f32) -> [2]int {
-	point_dist := point - grid.origin
-	x_tile_dist := int(math.round(point_dist.x / (0.75 * grid.hex_width)))
-	if x_tile_dist % 2 != 0 {
-		point_dist.y -= 0.5 * grid.hex_height
+axial_neighbors :: proc(coord: [2]int) -> [6][2]int {
+	result: [6][2]int
+	for dir, i in axial_directions {
+		result[i] = coord + dir
 	}
-	y_tile_dist := int(math.round(point_dist.y / grid.hex_height))
+	return result
+}
+
+axial_distance :: proc(a, b: [2]int) -> int {
+	vec := a - b
+	return (abs(vec.x) + abs(vec.x + vec.y) + abs(vec.y)) / 2
+}
+
+axial_round :: proc(frac: [2]f32) -> [2]int {
+	q_grid := math.round(frac[0])
+	r_grid := math.round(frac[1])
+	q := frac[0] - f32(q_grid)
+	r := frac[1] - f32(r_grid)
+	if abs(q) >= abs(r) {
+		q_grid += math.round(q + 0.5 * r)
+	} else {
+		r_grid += math.round(r + 0.5 * q)
+	}
+	return {int(q_grid), int(r_grid)}
+}
+
+axial_lerp :: proc(a, b: [2]int, t: f32) -> [2]f32 {
 	return {
-		x_tile_dist,
-		y_tile_dist,
+		linalg.lerp(f32(a[0]), f32(b[0]), t),
+		linalg.lerp(f32(a[1]), f32(b[1]), t),
 	}
 }
 
-hg_tile_rect :: proc(grid: Hex_Grid, rect: rl.Rectangle) {
-	tl_coord := hg_world_to_coord(grid, {rect.x, rect.y})
-	br_coord := hg_world_to_coord(grid, {rect.x + rect.width, rect.y + rect.height})
+hg_hex_to_world :: proc(grid: Hex_Grid, coord: [2]int) -> [2]f32 {
+	x := 0.75 * grid.hex_width * f32(coord.x)
+	y := 0.5 * grid.hex_height * f32(coord.x) + grid.hex_height * f32(coord.y)
+	return {x, y}
+}
 
-	for col in tl_coord.x..=br_coord.x {
-		for row in tl_coord.y..=br_coord.y {
-			if slice.contains(grid.obstacles, [2]int{col, row}) {
-				hg_draw_hex(grid, {col, row}, rl.DARKGRAY)
-			}
-			hg_draw_hex_lines(grid, {col, row}, rl.BLACK)
+hg_world_to_hex :: proc(grid: Hex_Grid, coord: [2]f32) -> [2]int {
+	q := 4 / (3 * grid.hex_width) * coord.x
+	r := -2 / (3 * grid.hex_width) * coord.x + 1 / grid.hex_height * coord.y
+	return axial_round({q, r})
+}
+
+hg_obstacle_index :: proc(grid: Hex_Grid, coord: [2]int) -> int {
+	for obstacle, i in grid.obstacles {
+		if obstacle == coord do return i
+	}
+	return -1
+}
+
+hg_tile_grid_over_rect :: proc(grid: Hex_Grid, rect: rl.Rectangle) {
+	hex_corner_tl := hg_world_to_hex(grid, {rect.x, rect.y})
+	hex_corner_br := hg_world_to_hex(grid, {rect.x + rect.width, rect.y + rect.height})
+	for q in hex_corner_tl.x..=hex_corner_br.x {
+		for r in hex_corner_tl.y..=hex_corner_br.y {
+			hg_draw_hex_lines(grid, {q, r}, rl.BLACK)
+		}
+	}
+
+	hex_corner_tr := hg_world_to_hex(grid, {rect.x + rect.width, rect.y})
+	for r := hex_corner_tr.y; r < hex_corner_tl.y; r += 1 {
+		cols := 1 + (r - hex_corner_tr.y) * 2
+		for q := hex_corner_tr.x; q > hex_corner_tr.x - cols; q -= 1 {
+			hg_draw_hex_lines(grid, {q, r}, rl.BLACK)
+		}
+	}
+
+	hex_corner_bl := hg_world_to_hex(grid, {rect.x, rect.y + rect.height})
+	for r := hex_corner_bl.y; r > hex_corner_br.y; r -= 1 {
+		cols := 1 + (hex_corner_bl.y - r) * 2
+		for q := hex_corner_bl.x; q < hex_corner_bl.x + cols; q += 1 {
+			hg_draw_hex_lines(grid, {q, r}, rl.BLACK)
 		}
 	}
 }
 
-hg_draw_hex :: proc(grid: Hex_Grid, coords: [2]int, color: rl.Color) {
-	hex_center := [2]f32{
-		f32(coords.x) * 0.75 * grid.hex_width,
-		f32(coords.y) * grid.hex_height,
+hg_draw_obstacles :: proc(grid: Hex_Grid) {
+	// we can probably afford to just draw every obstacle even if they aren't necessarily on screen
+	for obstacle in grid.obstacles {
+		hg_draw_hex(grid, obstacle, rl.DARKGRAY)
 	}
+}
 
-	if coords.x % 2 != 0 {
-		hex_center.y += 0.5 * grid.hex_height
-	}
-
+hg_draw_hex :: proc(grid: Hex_Grid, coord: [2]int, color: rl.Color) {
+	hex_center := hg_hex_to_world(grid, coord)
 	draw_hex(hex_center, grid.hex_width, grid.hex_height, color)
 }
 
-hg_draw_hex_lines :: proc(grid: Hex_Grid, coords: [2]int, color: rl.Color) {
-	hex_center := [2]f32{
-		f32(coords.x) * 0.75 * grid.hex_width,
-		f32(coords.y) * grid.hex_height,
-	}
-
-	if coords.x % 2 != 0 {
-		hex_center.y += 0.5 * grid.hex_height
-	}
-
+hg_draw_hex_lines :: proc(grid: Hex_Grid, coord: [2]int, color: rl.Color) {
+	hex_center := hg_hex_to_world(grid, coord)
 	draw_hex_lines(hex_center, grid.hex_width, grid.hex_height, color)
 }
 
@@ -119,6 +170,6 @@ draw_hex_lines :: proc(center: [2]f32, width, height: f32, color: rl.Color) {
 		j := (i + 1) % len(vertex_offsets)
 		v1 := center + vertex_offsets[i]
 		v2 := center + vertex_offsets[j]
-		rl.DrawLineEx(v1, v2, 1, color)
+		rl.DrawLineEx(v1, v2, 2, color)
 	}
 }
