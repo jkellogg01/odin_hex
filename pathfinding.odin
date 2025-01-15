@@ -34,8 +34,10 @@ find_path :: proc(start, target: [2]int, obstacles: [][2]int) -> ([][2]int, bool
 			break
 		}
 		for neighbor in axial_neighbors(current.coord) {
-			if neighbor in came_from do continue
-			pq.push(&frontier, Path_Step{ neighbor, current.g_cost + 1, axial_distance(neighbor, target) })
+			ncf, ok := came_from[neighbor].?
+			new_cost := current.g_cost + 1
+			if ok && new_cost >= current.g_cost do continue
+			pq.push(&frontier, Path_Step{ neighbor, new_cost, axial_distance(neighbor, target) })
 			came_from[neighbor] = current
 		}
 	}
