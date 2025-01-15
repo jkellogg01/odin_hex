@@ -4,6 +4,8 @@ import "core:slice"
 import "core:fmt"
 import pq "core:container/priority_queue"
 
+import rl "vendor:raylib"
+
 Path_Step :: struct {
 	coord: [2]int,
 	g_cost: int,
@@ -11,6 +13,7 @@ Path_Step :: struct {
 }
 
 find_path :: proc(start, target: [2]int, obstacles: [][2]int) -> ([][2]int, bool) {
+	start_time := rl.GetTime()
 	frontier: pq.Priority_Queue(Path_Step)
 	pq.init(&frontier, frontier_less, pq.default_swap_proc(Path_Step))
 	defer pq.destroy(&frontier)
@@ -20,6 +23,7 @@ find_path :: proc(start, target: [2]int, obstacles: [][2]int) -> ([][2]int, bool
 	came_from[start] = nil
 
 	for pq.len(frontier) > 0 {
+		if (rl.GetTime() - start_time) > 0.001 do return nil, false
 		current := pq.pop(&frontier)
 		in_obstacles: bool
 		for obstacle in obstacles {
