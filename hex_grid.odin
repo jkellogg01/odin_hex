@@ -78,11 +78,26 @@ hg_world_to_hex :: proc(grid: Hex_Grid, coord: [2]f32) -> [2]int {
 	return axial_round({q, r})
 }
 
-hg_obstacle_index :: proc(grid: Hex_Grid, coord: [2]int) -> int {
+hg_create_obstacle :: proc(grid: ^Hex_Grid, coord: [2]int) {
+	idx := -1
 	for obstacle, i in grid.obstacles {
-		if obstacle == coord do return i
+		if obstacle != coord do continue
+		idx = i
+		break
 	}
-	return -1
+	if idx != -1 do return
+	append(&grid.obstacles, coord)
+}
+
+hg_remove_obstacle :: proc(grid: ^Hex_Grid, coord: [2]int) {
+	idx := -1
+	for obstacle, i in grid.obstacles {
+		if obstacle != coord do continue
+		idx = i
+		break
+	}
+	if idx == -1 do return
+	unordered_remove(&grid.obstacles, idx)
 }
 
 hg_tile_grid_over_rect :: proc(grid: Hex_Grid, rect: rl.Rectangle) {
