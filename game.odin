@@ -80,7 +80,9 @@ update :: proc(g: ^Game_State) {
 		g.user_holding = .None
 	}
 
+	pf_time := rl.GetTime()
 	path, path_found := find_path(g.start, g.goal, g.grid.obstacles[:])
+	pf_duration := rl.GetTime() - pf_time
 
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.RAYWHITE)
@@ -98,7 +100,11 @@ update :: proc(g: ^Game_State) {
 	}
 	hg_tile_grid_over_rect(g.grid, grid_rect)
 	rl.EndMode2D()
+	rl.DrawRectangle(0, 0, path_found ? 225 : 100, path_found ? 75 : 25, rl.BLACK)
 	rl.DrawFPS(5, 5)
+	if path_found {
+		rl.DrawText(fmt.ctprintf("Path Length: %d Tiles\nFound In: %4fms", len(path), pf_duration * 1000), 5, 25, 20, rl.WHITE)
+	}
 	rl.EndDrawing()
 	free_all(context.temp_allocator)
 }
