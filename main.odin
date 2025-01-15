@@ -38,8 +38,6 @@ main :: proc() {
 		world_mouse := rl.GetScreenToWorld2D(screen_mouse, camera)
 		mouse_grid_coord := hg_world_to_hex(grid, world_mouse)
 		mouse_grid_to_world := hg_hex_to_world(grid, mouse_grid_coord)
-		// mouse_coord_string := fmt.caprintf("(%d,%d)", mouse_grid_coord.x, mouse_grid_coord.y)
-		// defer delete(mouse_coord_string)
 
 		grid_rect := rl.Rectangle {
 			(camera.target - camera.offset).x,
@@ -81,7 +79,9 @@ main :: proc() {
 			user_holding = .None
 		}
 
+		pf_start := rl.GetTime()
 		path, path_found := find_path(start, goal, grid.obstacles[:])
+		pf_time := rl.GetTime() - pf_start
 
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.RAYWHITE)
@@ -98,11 +98,14 @@ main :: proc() {
 			}
 		}
 		hg_tile_grid_over_rect(grid, grid_rect)
-		// rl.DrawText(mouse_coord_string, i32(math.round(world_mouse.x + 5)), i32(math.round(world_mouse.y + 5)), 24, rl.BLACK)
 
 		rl.EndMode2D()
 		rl.DrawFPS(5, 5)
+		pathtime_cstr := fmt.ctprintf("found path in %4f ms", pf_time * 1000)
+		rl.DrawText(pathtime_cstr, 5, 30, 20, rl.BLUE)
+
 		rl.EndDrawing()
+		free_all(context.temp_allocator)
 	}
 
 	rl.CloseWindow()
