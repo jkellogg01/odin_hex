@@ -12,7 +12,7 @@ Holding :: enum {
 	Goal,
 }
 
-Game_State :: struct {
+State :: struct {
 	grid: Hex_Grid,
 	start: [2]int,
 	goal: [2]int,
@@ -20,19 +20,30 @@ Game_State :: struct {
 	camera: rl.Camera2D, // need this for screen to world coordinates, even if it's not changing the viewport at all
 }
 
-init :: proc(g: ^Game_State) {
+main :: proc() {
+	s: State
+	init(&s)
+
+	for !rl.WindowShouldClose() {
+		update(&s)
+	}
+
+	shutdown(&s)
+}
+
+init :: proc(d: ^State) {
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 	rl.InitWindow(1920, 1080, "hex grid pathfinding")
 
 	rl.SetTargetFPS(60)
 
-	g.grid = hex_grid_projection(32, 45)
-	g.grid.obstacles = make([dynamic][2]int, 0)
+	d.grid = hex_grid_projection(32, 45)
+	d.grid.obstacles = make([dynamic][2]int, 0)
 
-	g.start = [2]int{-8, 0}
-	g.goal = [2]int{8, 0}
+	d.start = [2]int{-8, 0}
+	d.goal = [2]int{8, 0}
 
-	g.camera = {
+	d.camera = {
 		offset = {f32(rl.GetScreenWidth())/2, f32(rl.GetScreenHeight())/2},
 		target = {0, 0},
 		rotation = 0,
@@ -40,65 +51,65 @@ init :: proc(g: ^Game_State) {
 	}
 }
 
-update :: proc(g: ^Game_State) {
-	g.camera.offset = {f32(rl.GetScreenWidth())/2, f32(rl.GetScreenHeight())/2}
+update :: proc(s: ^State) {
+	s.camera.offset = {f32(rl.GetScreenWidth())/2, f32(rl.GetScreenHeight())/2}
 
 	screen_mouse := rl.GetMousePosition()
-	world_mouse := rl.GetScreenToWorld2D(screen_mouse, g.camera)
-	mouse_grid_coord := hg_world_to_hex(g.grid, world_mouse)
+	world_mouse := rl.GetScreenToWorld2D(screen_mouse, s.camera)
+	mouse_grid_coord := hg_world_to_hex(s.grid, world_mouse)
 
 	grid_rect := rl.Rectangle {
-		(g.camera.target - g.camera.offset).x,
-		(g.camera.target - g.camera.offset).y,
-		f32(rl.GetScreenWidth()) / g.camera.zoom,
-		f32(rl.GetScreenHeight()) / g.camera.zoom,
+		(s.camera.target - s.camera.offset).x,
+		(s.camera.target - s.camera.offset).y,
+		f32(rl.GetScreenWidth()) / s.camera.zoom,
+		f32(rl.GetScreenHeight()) / s.camera.zoom,
 	}
 
-	if g.user_holding == .None && rl.IsMouseButtonPressed(.LEFT) {
+	if s.user_holding == .None && rl.IsMouseButtonPressed(.LEFT) {
 		switch mouse_grid_coord {
-			case g.start:
-			g.user_holding = .Start
-			case g.goal:
-			g.user_holding = .Goal
+			case s.start:
+			s.user_holding = .Start
+			case s.goal:
+			s.user_holding = .Goal
 			case:
-			hg_create_obstacle(&g.grid, mouse_grid_coord)
+			hg_create_obstacle(&s.grid, mouse_grid_coord)
 		}
-	} else if g.user_holding == .None && rl.IsMouseButtonDown(.LEFT) {
-		hg_create_obstacle(&g.grid, mouse_grid_coord)
-	} else if g.user_holding == .None && rl.IsMouseButtonDown(.RIGHT) {
-		hg_remove_obstacle(&g.grid, mouse_grid_coord)
+	} else if s.user_holding == .None && rl.IsMouseButtonDown(.LEFT) {
+		hg_create_obstacle(&s.grid, mouse_grid_coord)
+	} else if s.user_holding == .None && rl.IsMouseButtonDown(.RIGHT) {
+		hg_remove_obstacle(&s.grid, mouse_grid_coord)
 	}
 
-	#partial switch g.user_holding {
+	#partial switch s.user_holding {
 		case .Start:
-			g.start = mouse_grid_coord
+			s.start = mouse_grid_coord
 		case .Goal:
-			g.goal = mouse_grid_coord
+			s.goal = mouse_grid_coord
 	}
 
-	if g.user_holding != .None && rl.IsMouseButtonReleased(.LEFT) {
-		g.user_holding = .None
+	if s.user_holding != .None && rl.IsMouseButtonReleased(.LEFT) {
+		s.user_holding = .None
 	}
 
 	pf_time := rl.GetTime()
-	path, path_found := find_path(g.start, g.goal, g.grid.obstacles[:])
+	path, path_found := find_path(s.start, s.goal, s.grid.obstacles[:])
 	pf_duration := rl.GetTime() - pf_time
 
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.RAYWHITE)
-	rl.BeginMode2D(g.camera)
-	hg_draw_obstacles(g.grid)
-	hg_draw_hex(g.grid, g.start, rl.BLUE)
-	hg_draw_hex(g.grid, g.goal, rl.RED)
-	if g.user_holding == .None {
-		hg_draw_hex(g.grid, mouse_grid_coord, {255, 255, 0, 100})
+	rl.BeginMode2D(s.camera)
+	hg_draw_obstacles(s.grid)
+	hg_draw_hex(s.grid, s.start, rl.BLUE)
+	hg_draw_hex(s.grid, s.goal, rl.RED)
+	if s.user_holding == .None {
+		hg_draw_hex(s.grid, mouse_grid_coord, {255, 255, 0, 100})
 	}
 	if path_found {
 		for path_space in path {
-			hg_draw_hex(g.grid, path_space, {255, 0, 255, 100})
+			hg_draw_hex(s.grid, path_space, {255, 0, 255, 100})
 		}
 	}
-	hg_tile_grid_over_rect(g.grid, grid_rect)
+	hg_tile_grid_over_rect(s.grid, grid_rect)
 	rl.EndMode2D()
 	rl.DrawRectangle(0, 0, path_found ? 225 : 100, path_found ? 75 : 25, rl.BLACK)
 	rl.DrawFPS(5, 5)
@@ -109,18 +120,7 @@ update :: proc(g: ^Game_State) {
 	free_all(context.temp_allocator)
 }
 
-shutdown :: proc(g: ^Game_State) {
+shutdown :: proc(s: ^State) {
 	rl.CloseWindow()
-	delete(g.grid.obstacles)
-}
-
-main :: proc() {
-	g: Game_State
-	init(&g)
-
-	for !rl.WindowShouldClose() {
-		update(&g)
-	}
-
-	shutdown(&g)
+	delete(s.grid.obstacles)
 }
