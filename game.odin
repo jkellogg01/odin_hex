@@ -33,7 +33,7 @@ main :: proc() {
 
 init :: proc(d: ^State) {
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
-	rl.InitWindow(1920, 1080, "hex grid pathfinding")
+	rl.InitWindow(1280, 720, "hex grid pathfinding")
 
 	rl.SetTargetFPS(60)
 

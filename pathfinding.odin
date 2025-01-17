@@ -23,7 +23,7 @@ find_path :: proc(start, target: [2]int, obstacles: [][2]int) -> ([][2]int, bool
 	came_from[start] = nil
 
 	for pq.len(frontier) > 0 {
-		if (rl.GetTime() - start_time) > 0.001 do return nil, false
+		if (rl.GetTime() - start_time) > 0.002 do return nil, false
 		current := pq.pop(&frontier)
 		in_obstacles: bool
 		for obstacle in obstacles {
