@@ -138,11 +138,17 @@ update :: proc(s: ^State) {
 	rl.DrawRectangle(tooltip_pos.x, tooltip_pos.y, rl.MeasureText(placing_tooltip, 20) + 10, 30, rl.BLACK)
 	rl.DrawText(placing_tooltip, tooltip_pos.x + 5, tooltip_pos.y + 5, 20, rl.WHITE)
 	rl.EndMode2D()
-	rl.DrawRectangle(0, 0, path_found ? 225 : 100, path_found ? 75 : 25, rl.BLACK)
-	rl.DrawFPS(5, 5)
 	if path_found {
-		rl.DrawText(fmt.ctprintf("Path Length: %d Tiles\nFound In: %4fms", len(path), pf_duration * 1000), 5, 25, 20, rl.WHITE)
+		path_length_cstr := fmt.ctprintf("Path Length: %d Tiles", len(path))
+		found_in_cstr := fmt.ctprintf("Found In: %4fms", pf_duration * 1000)
+		rec_width := max(rl.MeasureText(path_length_cstr, 20), rl.MeasureText(found_in_cstr, 20))
+		rl.DrawRectangle(0, 0, rec_width, 75, rl.BLACK)
+		rl.DrawText(path_length_cstr, 5, 25, 20, rl.WHITE)
+		rl.DrawText(found_in_cstr, 5, 45, 20, rl.WHITE)
+	} else {
+		rl.DrawRectangle(0, 0, 100, 30, rl.BLACK)
 	}
+	rl.DrawFPS(5, 5)
 	rl.EndDrawing()
 	free_all(context.temp_allocator)
 }
