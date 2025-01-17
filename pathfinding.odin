@@ -12,6 +12,8 @@ Path_Step :: struct {
 }
 
 find_path :: proc(start, target: [2]int, m: Hex_Map) -> ([][2]int, bool) {
+	_, target_traversible := map_cost(m, target)
+	if !target_traversible do return nil, false
 	start_time := rl.GetTime()
 	frontier: pq.Priority_Queue(Path_Step)
 	pq.init(&frontier, frontier_less, pq.default_swap_proc(Path_Step))
@@ -24,12 +26,9 @@ find_path :: proc(start, target: [2]int, m: Hex_Map) -> ([][2]int, bool) {
 	for pq.len(frontier) > 0 {
 		if (rl.GetTime() - start_time) > 0.002 do return nil, false
 		current := pq.pop(&frontier)
-		if current.coord == target {
-			// fmt.println("found target!")
-			break
-		}
 		cost, traversible := map_cost(m, current)
 		if !traversible do continue
+		if current.coord == target do break
 		for neighbor in axial_neighbors(current.coord) {
 			ok := came_from[neighbor] != nil
 			new_cost := current.g_cost + cost
