@@ -1,9 +1,7 @@
 package main
 
-import "core:fmt"
 import "core:math"
 import "core:math/linalg"
-import "core:slice"
 
 import rl "vendor:raylib"
 
@@ -19,7 +17,6 @@ axial_directions :: [6][2]int{
 Hex_Grid :: struct {
 	hex_width: f32,
 	hex_height: f32,
-	obstacles: [dynamic][2]int,
 }
 
 hex_grid_projection :: proc(radius, angle: f32) -> Hex_Grid {
@@ -29,7 +26,6 @@ hex_grid_projection :: proc(radius, angle: f32) -> Hex_Grid {
 	return {
 		hex_width,
 		hex_height,
-		nil,
 	}
 }
 
@@ -78,58 +74,22 @@ hg_world_to_hex :: proc(grid: Hex_Grid, coord: [2]f32) -> [2]int {
 	return axial_round({q, r})
 }
 
-hg_create_obstacle :: proc(grid: ^Hex_Grid, coord: [2]int) {
-	idx := -1
-	for obstacle, i in grid.obstacles {
-		if obstacle != coord do continue
-		idx = i
-		break
-	}
-	if idx != -1 do return
-	append(&grid.obstacles, coord)
-}
-
-hg_remove_obstacle :: proc(grid: ^Hex_Grid, coord: [2]int) {
-	idx := -1
-	for obstacle, i in grid.obstacles {
-		if obstacle != coord do continue
-		idx = i
-		break
-	}
-	if idx == -1 do return
-	unordered_remove(&grid.obstacles, idx)
-}
-
-hg_tile_grid_over_rect :: proc(grid: Hex_Grid, rect: rl.Rectangle) {
-	hex_corner_tl := hg_world_to_hex(grid, {rect.x, rect.y})
-	hex_corner_br := hg_world_to_hex(grid, {rect.x + rect.width, rect.y + rect.height})
-	for q in hex_corner_tl.x..=hex_corner_br.x {
-		for r in hex_corner_tl.y..=hex_corner_br.y {
-			hg_draw_hex_lines(grid, {q, r}, rl.BLACK)
-		}
-	}
-
-	hex_corner_tr := hg_world_to_hex(grid, {rect.x + rect.width, rect.y})
-	for r := hex_corner_tr.y; r < hex_corner_tl.y; r += 1 {
-		cols := 1 + (r - hex_corner_tr.y) * 2
-		for q := hex_corner_tr.x; q > hex_corner_tr.x - cols; q -= 1 {
-			hg_draw_hex_lines(grid, {q, r}, rl.BLACK)
-		}
-	}
-
-	hex_corner_bl := hg_world_to_hex(grid, {rect.x, rect.y + rect.height})
-	for r := hex_corner_bl.y; r > hex_corner_br.y; r -= 1 {
-		cols := 1 + (hex_corner_bl.y - r) * 2
-		for q := hex_corner_bl.x; q < hex_corner_bl.x + cols; q += 1 {
-			hg_draw_hex_lines(grid, {q, r}, rl.BLACK)
+hg_draw_map :: proc(grid: Hex_Grid, m: Hex_Map, wall_color: rl.Color) {
+	for coord, tile in m.tiles {
+		switch t in tile {
+		case Wall_Tile:
+			hg_draw_hex(grid, coord, wall_color)
+		case Floor_Tile:
+			floor_opacity := u8(f32(t.cost - m.min_cost) / f32(m.max_cost - m.min_cost) * 235.0) + 20
+			floor_color := rl.Color{ wall_color.r, wall_color.g, wall_color.b, floor_opacity }
+			hg_draw_hex(grid, coord, floor_color)
 		}
 	}
 }
 
-hg_draw_obstacles :: proc(grid: Hex_Grid) {
-	// we can probably afford to just draw every obstacle even if they aren't necessarily on screen
-	for obstacle in grid.obstacles {
-		hg_draw_hex(grid, obstacle, rl.DARKGRAY)
+hg_draw_map_lines :: proc(grid: Hex_Grid, m: Hex_Map, color := rl.BLACK) {
+	for coord in m.tiles {
+		hg_draw_hex_lines(grid, coord, color)
 	}
 }
 

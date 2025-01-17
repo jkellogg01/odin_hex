@@ -1,23 +1,22 @@
 package main
 
 import "core:slice"
-import "core:fmt"
 import pq "core:container/priority_queue"
 
 import rl "vendor:raylib"
 
 Path_Step :: struct {
-	coord: [2]int,
+	using coord: [2]int,
 	g_cost: int,
 	h_cost: int,
 }
 
-find_path :: proc(start, target: [2]int, obstacles: [][2]int) -> ([][2]int, bool) {
+find_path :: proc(start, target: [2]int, m: Hex_Map) -> ([][2]int, bool) {
 	start_time := rl.GetTime()
 	frontier: pq.Priority_Queue(Path_Step)
 	pq.init(&frontier, frontier_less, pq.default_swap_proc(Path_Step))
 	defer pq.destroy(&frontier)
-	pq.push(&frontier, Path_Step{start, 0, axial_distance(start, target)})
+	pq.push(&frontier, Path_Step{start, 0, map_heuristic(m, start, target)})
 
 	came_from := make(map[[2]int]Maybe(Path_Step))
 	came_from[start] = nil
@@ -25,23 +24,17 @@ find_path :: proc(start, target: [2]int, obstacles: [][2]int) -> ([][2]int, bool
 	for pq.len(frontier) > 0 {
 		if (rl.GetTime() - start_time) > 0.002 do return nil, false
 		current := pq.pop(&frontier)
-		in_obstacles: bool
-		for obstacle in obstacles {
-			if obstacle != current.coord do continue
-			came_from[current.coord] = nil
-			in_obstacles = true
-			break
-		}
-		if in_obstacles do continue
 		if current.coord == target {
 			// fmt.println("found target!")
 			break
 		}
+		cost, traversible := map_cost(m, current)
+		if !traversible do continue
 		for neighbor in axial_neighbors(current.coord) {
-			ncf, ok := came_from[neighbor].?
-			new_cost := current.g_cost + 1
+			ok := came_from[neighbor] != nil
+			new_cost := current.g_cost + cost
 			if ok && new_cost >= current.g_cost do continue
-			pq.push(&frontier, Path_Step{ neighbor, new_cost, axial_distance(neighbor, target) })
+			pq.push(&frontier, Path_Step{ neighbor, new_cost, map_heuristic(m, neighbor, target) })
 			came_from[neighbor] = current
 		}
 	}

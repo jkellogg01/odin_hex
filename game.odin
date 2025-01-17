@@ -1,8 +1,6 @@
 package main
 
-import "core:math"
 import "core:fmt"
-import "core:slice"
 
 import rl "vendor:raylib"
 
@@ -14,6 +12,7 @@ Holding :: enum {
 
 State :: struct {
 	grid: Hex_Grid,
+	tiles: Hex_Map,
 	start: [2]int,
 	goal: [2]int,
 	user_holding: Holding,
@@ -38,7 +37,6 @@ init :: proc(d: ^State) {
 	rl.SetTargetFPS(60)
 
 	d.grid = hex_grid_projection(32, 45)
-	d.grid.obstacles = make([dynamic][2]int, 0)
 
 	d.start = [2]int{-8, 0}
 	d.goal = [2]int{8, 0}
@@ -72,12 +70,12 @@ update :: proc(s: ^State) {
 			case s.goal:
 			s.user_holding = .Goal
 			case:
-			hg_create_obstacle(&s.grid, mouse_grid_coord)
+			map_set_tile(&s.tiles, mouse_grid_coord, Floor_Tile{5})
 		}
 	} else if s.user_holding == .None && rl.IsMouseButtonDown(.LEFT) {
-		hg_create_obstacle(&s.grid, mouse_grid_coord)
+		map_set_tile(&s.tiles, mouse_grid_coord, Floor_Tile{5})
 	} else if s.user_holding == .None && rl.IsMouseButtonDown(.RIGHT) {
-		hg_remove_obstacle(&s.grid, mouse_grid_coord)
+		map_remove_tile(&s.tiles, mouse_grid_coord)
 	}
 
 	#partial switch s.user_holding {
@@ -92,13 +90,13 @@ update :: proc(s: ^State) {
 	}
 
 	pf_time := rl.GetTime()
-	path, path_found := find_path(s.start, s.goal, s.grid.obstacles[:])
+	path, path_found := find_path(s.start, s.goal, s.tiles)
 	pf_duration := rl.GetTime() - pf_time
 
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.RAYWHITE)
 	rl.BeginMode2D(s.camera)
-	hg_draw_obstacles(s.grid)
+	hg_draw_map(s.grid, s.tiles, rl.PURPLE)
 	hg_draw_hex(s.grid, s.start, rl.BLUE)
 	hg_draw_hex(s.grid, s.goal, rl.RED)
 	if s.user_holding == .None {
@@ -109,7 +107,7 @@ update :: proc(s: ^State) {
 			hg_draw_hex(s.grid, path_space, {255, 0, 255, 100})
 		}
 	}
-	hg_tile_grid_over_rect(s.grid, grid_rect)
+	hg_draw_map_lines(s.grid, s.tiles)
 	rl.EndMode2D()
 	rl.DrawRectangle(0, 0, path_found ? 225 : 100, path_found ? 75 : 25, rl.BLACK)
 	rl.DrawFPS(5, 5)
@@ -122,5 +120,5 @@ update :: proc(s: ^State) {
 
 shutdown :: proc(s: ^State) {
 	rl.CloseWindow()
-	delete(s.grid.obstacles)
+	delete(s.tiles.tiles)
 }
