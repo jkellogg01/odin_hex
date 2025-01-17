@@ -80,7 +80,7 @@ hg_draw_map :: proc(grid: Hex_Grid, m: Hex_Map, wall_color: rl.Color) {
 		case Wall_Tile:
 			hg_draw_hex(grid, coord, wall_color)
 		case Floor_Tile:
-			floor_opacity := u8(f32(t.cost - m.min_cost) / f32(m.max_cost - m.min_cost) * 235.0) + 20
+			floor_opacity := u8(f32(t.cost - m.min_cost) / f32(m.max_cost - m.min_cost) * 200.0) + 20
 			floor_color := rl.Color{ wall_color.r, wall_color.g, wall_color.b, floor_opacity }
 			hg_draw_hex(grid, coord, floor_color)
 		}
