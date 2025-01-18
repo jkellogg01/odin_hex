@@ -23,6 +23,7 @@ State :: struct {
 	goal: [2]int,
 	user_holding: Holding,
 	user_placing_idx: int,
+	placing_switch_time: f64,
 	camera: rl.Camera2D, // need this for screen to world coordinates, even if it's not changing the viewport at all
 }
 
@@ -110,11 +111,13 @@ update :: proc(s: ^State) {
 	scroll := rl.GetMouseWheelMove()
 	if scroll > 0 {
 		s.user_placing_idx += 1
+		s.placing_switch_time = rl.GetTime()
 	} else if scroll < 0 {
 		s.user_placing_idx -= 1
 		if s.user_placing_idx < 0 {
 			s.user_placing_idx = len(placeable_tiles) - 1
 		}
+		s.placing_switch_time = rl.GetTime()
 	}
 	s.user_placing_idx %= len(placeable_tiles)
 
@@ -138,10 +141,17 @@ update :: proc(s: ^State) {
 	}
 	hg_draw_map_lines(s.grid, s.tiles)
 	rl.EndMode2D()
+
+	// tooltip!
+	seconds_since_switch := rl.GetTime() - s.placing_switch_time
+	u := min(1, 2 - seconds_since_switch)
+	u = max(u, 0)
+	tooltip_alpha := math.sin(f32(u) * math.PI / 2)
 	placing_tooltip := fmt.ctprintf("Currently Placing: %s", placeable_tiles[s.user_placing_idx].name)
 	tooltip_pos := [2]i32{ i32(math.round(screen_mouse.x) + 5), i32(math.round(screen_mouse.y) + 5)}
-	rl.DrawRectangle(tooltip_pos.x, tooltip_pos.y, rl.MeasureText(placing_tooltip, 20) + 10, 30, rl.BLACK)
-	rl.DrawText(placing_tooltip, tooltip_pos.x + 5, tooltip_pos.y + 5, 20, rl.WHITE)
+	rl.DrawRectangle(tooltip_pos.x, tooltip_pos.y, rl.MeasureText(placing_tooltip, 20) + 10, 30, rl.ColorAlpha(rl.BLACK, tooltip_alpha))
+	rl.DrawText(placing_tooltip, tooltip_pos.x + 5, tooltip_pos.y + 5, 20, rl.ColorAlpha(rl.WHITE, tooltip_alpha))
+
 	if path_found {
 		path_length_cstr := fmt.ctprintf("Path Length: %d Tiles", len(path))
 		found_in_cstr := fmt.ctprintf("Found In: %4fms", pf_duration * 1000)
