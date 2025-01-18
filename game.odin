@@ -66,6 +66,10 @@ init :: proc(s: ^State) {
 update :: proc(s: ^State) {
 	s.camera.offset = {f32(rl.GetScreenWidth())/2, f32(rl.GetScreenHeight())/2}
 
+	if rl.IsMouseButtonDown(.MIDDLE) {
+		s.camera.target -= rl.GetMouseDelta()
+	}
+
 	screen_mouse := rl.GetMousePosition()
 	world_mouse := rl.GetScreenToWorld2D(screen_mouse, s.camera)
 	mouse_grid_coord := hg_world_to_hex(s.grid, world_mouse)
