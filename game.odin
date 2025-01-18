@@ -137,11 +137,11 @@ update :: proc(s: ^State) {
 		}
 	}
 	hg_draw_map_lines(s.grid, s.tiles)
+	rl.EndMode2D()
 	placing_tooltip := fmt.ctprintf("Currently Placing: %s", placeable_tiles[s.user_placing_idx].name)
-	tooltip_pos := [2]i32{ i32(math.round(world_mouse.x) + 5), i32(math.round(world_mouse.y) + 5)}
+	tooltip_pos := [2]i32{ i32(math.round(screen_mouse.x) + 5), i32(math.round(screen_mouse.y) + 5)}
 	rl.DrawRectangle(tooltip_pos.x, tooltip_pos.y, rl.MeasureText(placing_tooltip, 20) + 10, 30, rl.BLACK)
 	rl.DrawText(placing_tooltip, tooltip_pos.x + 5, tooltip_pos.y + 5, 20, rl.WHITE)
-	rl.EndMode2D()
 	if path_found {
 		path_length_cstr := fmt.ctprintf("Path Length: %d Tiles", len(path))
 		found_in_cstr := fmt.ctprintf("Found In: %4fms", pf_duration * 1000)
